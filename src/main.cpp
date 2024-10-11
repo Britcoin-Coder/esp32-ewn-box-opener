@@ -10,29 +10,52 @@
  * ------------------------------------------------------------------------
  */
 
+#include <string>
 #include "bip39/bip39.h"
 #include <Arduino.h>
 #include "WiFi.h"
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
+#include <SPI.h>
+#include <TFT_eSPI.h> 
+#include "kitty.h"
+TFT_eSPI tft = TFT_eSPI(); 
+TFT_eSprite background= TFT_eSprite(&tft);
+TFT_eSprite txtSprite1= TFT_eSprite(&tft);
+TFT_eSprite txtSprite2= TFT_eSprite(&tft);
+
 
 //=====wifi setup
-const char *ssid = "YOUR_WIFI_SSID"; // <---------------------- SET THIS !!!
-const char *password = "YOUR_WIFI_PASSWORD"; // <-------------- SET THIS !!!
+const char *ssid = ""; // <---------------------- SET THIS !!!
+const char *password = ""; // <-------------- SET THIS !!!
 
 //=====Box Opener client setup
 const char *apiUrl = "https://api.erwin.lol/"; // mainnet
 //const char *apiUrl = "https://devnet-api.erwin.lol/"; // devnet
-const char *apiKey = "YOUR_API_KEY"; // <---------------------- SET THIS !!!
+const char *apiKey = ""; // <---------------------- SET THIS !!!
 
 
 const int numGuesses = 50;
 String mnemonics[numGuesses]; // bip39 mnemonic table
 int sleepTime = 10000; // default sleep time in ms
+int dataS = 0; //succesful data count
+int dataF = 0; //failed data count
+int dataT = 0; //Timeout count
+int dataP = 0; //success percentage
+
 
 void setup()
 {
+  tft.init();
+  tft.setRotation(0);
+  tft.setSwapBytes(true);
+
+  background.createSprite(135,240);
+  background.setSwapBytes(true);
+  txtSprite1.createSprite(100,20);
+  txtSprite2.createSprite(100,20);
+  
   Serial.begin(115200);
 
   WiFi.mode(WIFI_STA);
@@ -42,6 +65,14 @@ void setup()
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   Serial.print("Connecting to WiFi ..");
+  
+  background.pushImage(0,0,135,240,kitty);
+  txtSprite1.setTextColor(TFT_WHITE,TFT_BLACK);
+  txtSprite1.fillSprite(TFT_BLACK);
+  txtSprite1.drawString("Connecting",20,0,2);
+  txtSprite1.pushToSprite(&background,20,205,TFT_BLACK);
+  background.pushSprite(0,0);
+
   while (WiFi.status() != WL_CONNECTED)
   {
     Serial.print('.');
@@ -52,7 +83,6 @@ void setup()
 
   Serial.printf("===============\n");
   Serial.printf("Box-opener started\n");
-
 }
 
 //===== generate table of 50 bip39 12-word mnemonics
@@ -85,7 +115,13 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
 
   Serial.printf("🔑️ Generated %u guesses\n", numGuesses);
   Serial.printf("➡️ Submitting to oracle\n");
-
+  background.pushImage(0,0,135,240,kitty);
+  txtSprite1.setTextColor(TFT_WHITE,TFT_BLACK);
+  txtSprite1.fillSprite(TFT_BLACK);
+  txtSprite1.drawString("Generating",17,0,2);
+  txtSprite1.pushToSprite(&background,20,205,TFT_BLACK);
+  background.pushSprite(0,0);
+ 
   String jsonString;
   serializeJson(jsonDoc, jsonString);
 
@@ -96,33 +132,58 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
   http.setTimeout(15000); // increase default 5s to 15s
 
   int httpResponseCode = http.POST(jsonString);
-
+  background.pushImage(0,0,135,240,kitty);
+      
   if (httpResponseCode > 0)
-  {
+  {  
     String response = http.getString();
     if (httpResponseCode == 202)
     {
       Serial.println("✅ Guesses accepted");
+      txtSprite1.setTextColor(TFT_BLUE,TFT_BLACK);
+      txtSprite1.fillSprite(TFT_BLACK);
+      txtSprite1.drawString("Accepted",23,0,2);
+      dataS ++;
       ret = false;
     }
     else if (httpResponseCode == 404) // "Closed Box Not Found"
     {
       Serial.printf("❌ Guesses rejected (%d): %s\n", httpResponseCode, response.c_str());
+      txtSprite1.setTextColor(TFT_GREEN,TFT_BLACK);
+      txtSprite1.fillSprite(TFT_BLACK);
+      txtSprite1.drawString("No Boxes",25,0,2);
+      dataF ++;
       ret = false;
     }
     else // other errors
     {
       Serial.printf("❌ Guesses rejected (%d): %s\n", httpResponseCode, response.c_str());
+      txtSprite1.setTextColor(TFT_GREEN,TFT_BLACK);
+      txtSprite1.fillSprite(TFT_BLACK);
+      txtSprite1.drawString("Rejected",24,0,2);
+      dataF ++;
       ret = true;
     }
   }
   else // even more other errors :V maybe do a reconnect?
   {
     Serial.printf("❌ Error in HTTP request: %s\n", http.errorToString(httpResponseCode).c_str());
+    txtSprite1.setTextColor(TFT_GREEN,TFT_BLACK);
+    txtSprite1.fillSprite(TFT_BLACK);
+    txtSprite1.drawString("Timeout",27,0,2);
+    
+    dataT ++;
     ret = true;
   }
 
   http.end();
+    //dataP = dataS/(dataS+dataF+dataT);
+    txtSprite1.pushToSprite(&background,20,205,TFT_BLACK);
+    txtSprite2.setTextColor(TFT_WHITE,TFT_BLACK);
+    //txtSprite2.fillSprite(TFT_BLACK);
+    //txtSprite2.drawString(String(dataP),0,0,2);
+    //txtSprite2.pushToSprite(&background,20,40,TFT_BLACK);
+    background.pushSprite(0,0);
   return ret;
 }
 
