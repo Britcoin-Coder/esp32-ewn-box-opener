@@ -27,13 +27,13 @@ TFT_eSprite txtSprite2= TFT_eSprite(&tft);
 
 
 //=====wifi setup
-const char *ssid = ""; // <---------------------- SET THIS !!!
-const char *password = ""; // <-------------- SET THIS !!!
+const char *ssid = "BDA Home 2"; // <---------------------- SET THIS !!!
+const char *password = "D@taflow99"; // <-------------- SET THIS !!!
 
 //=====Box Opener client setup
 const char *apiUrl = "https://api.erwin.lol/"; // mainnet
 //const char *apiUrl = "https://devnet-api.erwin.lol/"; // devnet
-const char *apiKey = ""; // <---------------------- SET THIS !!!
+const char *apiKey = "e05b6057f7706c64ffc1798c9ef4b75fca9f20ae489c07062597dc166a0b1cf854cd7144104727fb3ef1f1240e35d6ccb9b9fb257b189138189d0a7bb77d71285df2bce39dd6d6e45db72ab48f3971a468caac8d5c85900865c801199c6b375524b3dea6b41fe449b855cd3b571e9bc88f948da42d89e17790ca73b27effcef0"; // <---------------------- SET THIS !!!
 
 
 const int numGuesses = 50;
@@ -120,6 +120,7 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
   txtSprite1.fillSprite(TFT_BLACK);
   txtSprite1.drawString("Generating",17,0,2);
   txtSprite1.pushToSprite(&background,20,205,TFT_BLACK);
+  txtSprite2.pushToSprite(&background,18,36,TFT_BLACK);
   background.pushSprite(0,0);
  
   String jsonString;
@@ -177,12 +178,13 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
   }
 
   http.end();
-    //dataP = dataS/(dataS+dataF+dataT);
+    dataP = float(dataS)/float(dataS+dataF+dataT)*100;
+    String percent = String(dataP)+"%";
     txtSprite1.pushToSprite(&background,20,205,TFT_BLACK);
-    txtSprite2.setTextColor(TFT_WHITE,TFT_BLACK);
-    //txtSprite2.fillSprite(TFT_BLACK);
-    //txtSprite2.drawString(String(dataP),0,0,2);
-    //txtSprite2.pushToSprite(&background,20,40,TFT_BLACK);
+    txtSprite2.setTextColor(TFT_RED,TFT_BLACK);
+    txtSprite2.fillSprite(TFT_BLACK);
+    txtSprite2.drawString(percent,0,0,2);
+    txtSprite2.pushToSprite(&background,13,37,TFT_BLACK);
     background.pushSprite(0,0);
   return ret;
 }
