@@ -53,6 +53,22 @@ If you have different board than T-Display then additional changes will be requi
 You will need to add the TFT_eSPI library to your project, do this from the platformio Quick Access>Library menu and in
 the Registry tab search for TFT_eSPI. Select is and then click the Add to Project button and select the right project.
 
+Once the Library is added you need to update the User_SetupSelect.h file to setup for the t-display.
+comment this line out
+
+#include <User_Setup.h>           // Default setup is root library folder
+
+```
+//#include <User_Setup.h>           // Default setup is root library folder
+``````
+and uncomment this line
+
+//#include <User_Setups/Setup25_TTGO_T_Display.h>    // Setup file for ESP32 and TTGO T-Display ST7789V SPI bus TFT
+
+```
+#include <User_Setups/Setup25_TTGO_T_Display.h>    // Setup file for ESP32 and TTGO T-Display ST7789V SPI bus TFT
+``````
+
 Compile and upload to your board (click the right arrow button on bottom strip of the VSCode).
 
 ## Running.
