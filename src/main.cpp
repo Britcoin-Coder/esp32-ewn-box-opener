@@ -43,6 +43,7 @@ int dataS = 0; //succesful data count
 int dataF = 0; //failed data count
 int dataT = 0; //Timeout count
 int dataP = 0; //success percentage
+int chargeCheck = 0; //count of consecutive rejects
 
 
 void setup()
@@ -118,7 +119,7 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
   background.pushImage(0,0,135,240,kitty);
   txtSprite1.setTextColor(TFT_WHITE,TFT_BLACK);
   txtSprite1.fillSprite(TFT_BLACK);
-  txtSprite1.drawString("Generating",17,0,2);
+  txtSprite1.drawString("Generating",17,0,2); 
   txtSprite1.pushToSprite(&background,20,205,TFT_BLACK);
   txtSprite2.pushToSprite(&background,18,36,TFT_BLACK);
   background.pushSprite(0,0);
@@ -145,6 +146,7 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
       txtSprite1.fillSprite(TFT_BLACK);
       txtSprite1.drawString("Accepted",23,0,2);
       dataS ++;
+      chargeCheck = 0;
       ret = false;
     }
     else if (httpResponseCode == 404) // "Closed Box Not Found"
@@ -154,6 +156,7 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
       txtSprite1.fillSprite(TFT_BLACK);
       txtSprite1.drawString("No Boxes",25,0,2);
       dataF ++;
+      chargeCheck = 0;
       ret = false;
     }
     else // other errors
@@ -163,6 +166,7 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
       txtSprite1.fillSprite(TFT_BLACK);
       txtSprite1.drawString("Rejected",24,0,2);
       dataF ++;
+      chargeCheck ++;
       ret = true;
     }
   }
@@ -172,12 +176,20 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
     txtSprite1.setTextColor(TFT_GREEN,TFT_BLACK);
     txtSprite1.fillSprite(TFT_BLACK);
     txtSprite1.drawString("Timeout",27,0,2);
-    
     dataT ++;
+    --chargeCheck;
     ret = true;
   }
 
   http.end();
+
+    if (chargeCheck > 10)
+    {
+      txtSprite1.setTextColor(TFT_GREEN,TFT_BLACK);
+      txtSprite1.fillSprite(TFT_BLACK);
+      txtSprite1.drawString("CHARGE ME",18,0,2);
+    }
+  
     dataP = float(dataS)/float(dataS+dataF+dataT)*100;
     String percent = String(dataP)+"%";
     txtSprite1.pushToSprite(&background,20,205,TFT_BLACK);
@@ -186,6 +198,7 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
     txtSprite2.drawString(percent,0,0,2);
     txtSprite2.pushToSprite(&background,13,37,TFT_BLACK);
     background.pushSprite(0,0);
+    
   return ret;
 }
 
@@ -226,4 +239,6 @@ void loop()
 
   Serial.printf("waiting %is for next batch...\n", sleepTime/1000);
   delay(sleepTime);
+}
+
 }
