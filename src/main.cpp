@@ -240,5 +240,3 @@ void loop()
   Serial.printf("waiting %is for next batch...\n", sleepTime/1000);
   delay(sleepTime);
 }
-
-}
