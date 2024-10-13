@@ -4,7 +4,9 @@
  * Description: Esp32 port of the Box Opener client for mining EWN tokens.
  * Author: Crey
  * Repository: https://github.com/cr3you/esp32-ewn-box-opener/
- * Date: 2024.10.04 
+ * Fork Author: bigdaveakers
+ * Fork Repository: https://github.com/Britcoin-Coder/esp32-ewn-box-opener
+ * Date: 2024.10.13 
  * Version: 1.0.1
  * License: MIT
  * ------------------------------------------------------------------------
@@ -22,6 +24,7 @@
 #include "box.h"
 #include "kitty.h"
 #include "charge.h"
+#include "creds.h"
 TFT_eSPI tft = TFT_eSPI(); 
 TFT_eSprite background= TFT_eSprite(&tft);
 TFT_eSprite txtSprite1= TFT_eSprite(&tft);
@@ -30,14 +33,6 @@ TFT_eSprite Kitty= TFT_eSprite(&tft);
 TFT_eSprite Charge= TFT_eSprite(&tft);
 
 
-//=====wifi setup
-const char *ssid = ""; // <---------------------- SET THIS !!!
-const char *password = ""; // <-------------- SET THIS !!!
-
-//=====Box Opener client setup
-const char *apiUrl = "https://api.erwin.lol/"; // mainnet
-//const char *apiUrl = "https://devnet-api.erwin.lol/"; // devnet
-const char *apiKey = ""; // <---------------------- SET THIS !!!
 
 
 const int numGuesses = 50;
