@@ -19,11 +19,15 @@
 #include <ArduinoJson.h>
 #include <SPI.h>
 #include <TFT_eSPI.h> 
+#include "box.h"
 #include "kitty.h"
+#include "charge.h"
 TFT_eSPI tft = TFT_eSPI(); 
 TFT_eSprite background= TFT_eSprite(&tft);
 TFT_eSprite txtSprite1= TFT_eSprite(&tft);
 TFT_eSprite txtSprite2= TFT_eSprite(&tft);
+TFT_eSprite Kitty= TFT_eSprite(&tft);
+TFT_eSprite Charge= TFT_eSprite(&tft);
 
 
 //=====wifi setup
@@ -52,10 +56,14 @@ void setup()
   tft.setRotation(0);
   tft.setSwapBytes(true);
 
+  // Create graphics elements
   background.createSprite(135,240);
   background.setSwapBytes(true);
+  Kitty.createSprite(96,133);
+  Charge.createSprite(77,88); 
   txtSprite1.createSprite(100,20);
   txtSprite2.createSprite(100,20);
+  
   
   Serial.begin(115200);
 
@@ -67,11 +75,13 @@ void setup()
   WiFi.begin(ssid, password);
   Serial.print("Connecting to WiFi ..");
   
-  background.pushImage(0,0,135,240,kitty);
+  //Display empty box and Connecting message
+  background.pushImage(0,0,135,240,box);
   txtSprite1.setTextColor(TFT_WHITE,TFT_BLACK);
   txtSprite1.fillSprite(TFT_BLACK);
-  txtSprite1.drawString("Connecting",20,0,2);
+  txtSprite1.drawString("Connecting",20,0,2); 
   txtSprite1.pushToSprite(&background,20,205,TFT_BLACK);
+  //Render to screen
   background.pushSprite(0,0);
 
   while (WiFi.status() != WL_CONNECTED)
@@ -116,12 +126,22 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
 
   Serial.printf("🔑️ Generated %u guesses\n", numGuesses);
   Serial.printf("➡️ Submitting to oracle\n");
-  background.pushImage(0,0,135,240,kitty);
+
+  //Setup empty box and Generating message
+  background.pushImage(0,0,135,240,box);
   txtSprite1.setTextColor(TFT_WHITE,TFT_BLACK);
   txtSprite1.fillSprite(TFT_BLACK);
   txtSprite1.drawString("Generating",17,0,2); 
   txtSprite1.pushToSprite(&background,20,205,TFT_BLACK);
+  //Setup percent success text
   txtSprite2.pushToSprite(&background,18,36,TFT_BLACK);
+  //Check if charge is needed and setup kitty or charge image
+  if (chargeCheck < 10)
+    {
+      Kitty.pushImage(0,0,96,133,kitty);
+      Kitty.pushToSprite(&background,26,52,TFT_BLACK);
+    }
+  //Render to Screen
   background.pushSprite(0,0);
  
   String jsonString;
@@ -134,7 +154,7 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
   http.setTimeout(15000); // increase default 5s to 15s
 
   int httpResponseCode = http.POST(jsonString);
-  background.pushImage(0,0,135,240,kitty);
+  background.pushImage(0,0,135,240,box);
       
   if (httpResponseCode > 0)
   {  
@@ -142,61 +162,83 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
     if (httpResponseCode == 202)
     {
       Serial.println("✅ Guesses accepted");
-      txtSprite1.setTextColor(TFT_BLUE,TFT_BLACK);
+      //Setup Accepted message
+      txtSprite1.setTextColor(TFT_BLUE,TFT_BLACK); //Note BLUE is actually GREEN!
       txtSprite1.fillSprite(TFT_BLACK);
       txtSprite1.drawString("Accepted",23,0,2);
+      //Setup counts
       dataS ++;
       chargeCheck = 0;
+
       ret = false;
     }
     else if (httpResponseCode == 404) // "Closed Box Not Found"
     {
       Serial.printf("❌ Guesses rejected (%d): %s\n", httpResponseCode, response.c_str());
-      txtSprite1.setTextColor(TFT_GREEN,TFT_BLACK);
+      //Setup No Boxes message
+      txtSprite1.setTextColor(TFT_GREEN,TFT_BLACK); //Note GREEN is actually RED!
       txtSprite1.fillSprite(TFT_BLACK);
       txtSprite1.drawString("No Boxes",25,0,2);
+      //Setup counts
       dataF ++;
-      chargeCheck = 0;
+      chargeCheck = 0; //if there is a valid response then the box doesn't need charging
+      
       ret = false;
     }
     else // other errors
     {
       Serial.printf("❌ Guesses rejected (%d): %s\n", httpResponseCode, response.c_str());
-      txtSprite1.setTextColor(TFT_GREEN,TFT_BLACK);
+      //Setup Rejected message
+      txtSprite1.setTextColor(TFT_GREEN,TFT_BLACK); //Note GREEN is actually RED
       txtSprite1.fillSprite(TFT_BLACK);
       txtSprite1.drawString("Rejected",24,0,2);
+      //Setup counts
       dataF ++;
-      chargeCheck ++;
+      chargeCheck ++; //if a guess is rejected it COULD be due to needing to charge
+      
       ret = true;
     }
   }
   else // even more other errors :V maybe do a reconnect?
   {
     Serial.printf("❌ Error in HTTP request: %s\n", http.errorToString(httpResponseCode).c_str());
-    txtSprite1.setTextColor(TFT_GREEN,TFT_BLACK);
+    //Setup Timeout message
+    txtSprite1.setTextColor(TFT_GREEN,TFT_BLACK); //Note Green is actually RED
     txtSprite1.fillSprite(TFT_BLACK);
     txtSprite1.drawString("Timeout",27,0,2);
+    //Setup counts
     dataT ++;
-    --chargeCheck;
+
     ret = true;
   }
 
   http.end();
-
-    if (chargeCheck > 10)
+    //If there are 10 consecutive rejects without and accept then it is likely that the box needs charging
+    if (chargeCheck >= 10)
     {
-      txtSprite1.setTextColor(TFT_GREEN,TFT_BLACK);
+      //Setup CHARGE ME message and charge image
+      txtSprite1.setTextColor(TFT_GREEN,TFT_BLACK); //Note GREEN is actually RED
       txtSprite1.fillSprite(TFT_BLACK);
       txtSprite1.drawString("CHARGE ME",18,0,2);
+      Charge.pushImage(0,0,77,88,charge);
+      Charge.pushToSprite(&background,30,68,TFT_BLACK);
+    }
+    else
+    { //if there is no charge needed setup the kitty image
+      Kitty.pushImage(0,0,96,133,kitty);
+      Kitty.pushToSprite(&background,26,52,TFT_BLACK);
     }
   
+    //do some maths to work out the succesful percent of guess rounds
     dataP = float(dataS)/float(dataS+dataF+dataT)*100;
     String percent = String(dataP)+"%";
+    //Setup status message and percent message
     txtSprite1.pushToSprite(&background,20,205,TFT_BLACK);
     txtSprite2.setTextColor(TFT_RED,TFT_BLACK);
     txtSprite2.fillSprite(TFT_BLACK);
     txtSprite2.drawString(percent,0,0,2);
     txtSprite2.pushToSprite(&background,13,37,TFT_BLACK);
+    //Render to screem
     background.pushSprite(0,0);
     
   return ret;
