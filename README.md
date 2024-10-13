@@ -36,7 +36,7 @@ Mainnet - https://erwin.lol/box-opener
 
 Devnet - https://devnet.erwin.lol/box-opener
 
-Set up your wifi credentials (ssid and password) and yout API key in main.cpp file (in the "src" directory).
+Set up your wifi credentials (ssid and password) and yout API key in creds.h file (in the "src" directory).
 ```
 //=====wifi setup
 const char *ssid = "YOUR_WIFI_SSID"; // <---------------------- SET THIS !!!
