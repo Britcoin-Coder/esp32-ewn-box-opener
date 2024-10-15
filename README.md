@@ -58,6 +58,7 @@ and uncomment this line
 ``````
 You will also need to add the WiFi Manager library to your project, do this from the platformio Quick Access>Library menu and in
 the Registry tab search for WiFi Manager by tzapu
+Credit to https://dronebotworkshop.com/wifimanager/ for the instructions!
 
 Compile and upload to your board (click the right arrow button on bottom strip of the VSCode).
 
