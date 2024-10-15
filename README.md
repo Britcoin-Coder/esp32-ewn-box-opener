@@ -62,7 +62,7 @@ the Registry tab search for WiFi Manager by tzapu
 Compile and upload to your board (click the right arrow button on bottom strip of the VSCode).
 
 Once running you will need to setup your credentials. To connect to the board use a device to connect to the WiFi Access Point that should
-show in your WiFi network list as "Erwin Box Opener"
+show in your WiFi network list as "Erwin Box Opener" the password is "password"
 From here choose the configure WiFi button and you should be presented with a screen where you can input your SSID, password and API Key.
 ## NOTE, at the moment this is a one shot, if you get it wrong you will need to uncomment out line 199 and rebuild, then recomment and rebuild
 ## before setting your creds
