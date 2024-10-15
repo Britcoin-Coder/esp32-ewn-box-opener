@@ -136,7 +136,7 @@ bool loadConfigFile()
  
   return false;
 }
- 
+
  
 void saveConfigCallback()
 // Callback notifying us of the need to save configuration
@@ -157,11 +157,8 @@ void configModeCallback(WiFiManager *myWiFiManager)
   Serial.println(WiFi.softAPIP());
 }
 
-void setup()
+void wificonnect()
 {
-  Serial.begin(115200);
-
-  pinMode(TRIGGER_PIN, INPUT_PULLUP);
 
   // Change to true when testing to force configuration every time we run
   bool forceConfig = false;
@@ -195,7 +192,7 @@ void setup()
   delay(100);
 
   WiFi.mode(WIFI_STA);
-  //WiFi.begin(ssid, password);
+  
   //wm.resetSettings();
 
   // Set config save notify callback
@@ -257,7 +254,17 @@ res = wm.autoConnect("Erwin Box Opener","password"); // password protected ap
 
   Serial.print("api key: ");
   Serial.println(apiKey);
- 
+}
+
+
+
+void setup()
+{
+  Serial.begin(115200);
+
+  pinMode(TRIGGER_PIN, INPUT_PULLUP);
+
+  wificonnect();
 
   while (WiFi.status() != WL_CONNECTED)
   {
@@ -425,6 +432,14 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
 //====== main loop ====
 void loop()
 {
+  // is configuration portal requested?
+  if ( digitalRead(TRIGGER_PIN) == LOW) 
+    {
+      wm.resetSettings();
+      wificonnect();
+    }
+
+
   //--- reconnect wifi if it is not connected by some reason
   if (WiFi.status() != WL_CONNECTED)
   {
