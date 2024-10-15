@@ -36,18 +36,6 @@ Mainnet - https://erwin.lol/box-opener
 
 Devnet - https://devnet.erwin.lol/box-opener
 
-Set up your wifi credentials (ssid and password) and yout API key in creds.h file (in the "src" directory).
-```
-//=====wifi setup
-const char *ssid = "YOUR_WIFI_SSID"; // <---------------------- SET THIS !!!
-const char *password = "YOUR_WIFI_PASSWORD"; // <-------------- SET THIS !!!
-
-//=====Box Opener client setup
-const char *apiUrl = "https://api.erwin.lol/"; // mainnet
-//const char *apiUrl = "https://devnet-api.erwin.lol/"; // devnet
-const char *apiKey = "YOUR_API_KEY"; // <---------------------- SET THIS !!!
-```
-
 If you have different board than T-Display then additional changes will be required
 
 You will need to add the TFT_eSPI library to your project, do this from the platformio Quick Access>Library menu and in
@@ -68,8 +56,22 @@ and uncomment this line
 ```
 #include <User_Setups/Setup25_TTGO_T_Display.h>    // Setup file for ESP32 and TTGO T-Display ST7789V SPI bus TFT
 ``````
+You will also need to add the WiFi Manager library to your project, do this from the platformio Quick Access>Library menu and in
+the Registry tab search for WiFi Manager by tzapu
 
 Compile and upload to your board (click the right arrow button on bottom strip of the VSCode).
+
+Once running you will need to setup your credentials. To connect to the board use a device to connect to the WiFi Access Point that should
+show in your WiFi network list as "Erwin Box Opener"
+From here choose the configure WiFi button and you should be presented with a screen where you can input your SSID, password and API Key.
+## NOTE, at the moment this is a one shot, if you get it wrong you will need to uncomment out line 199 and rebuild, then recomment and rebuild
+## before setting your creds
+```
+//wm.resetSettings();
+``````
+Once running you should see the below on the serial terminal and the lcd screen should do its thing!
+
+You can unplug the board from your computer and the settings should persist.
 
 ## Running.
 Open serial terminal with 115200 bps baudrate and connect to the esp32 board.
