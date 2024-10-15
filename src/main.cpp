@@ -15,16 +15,18 @@
 #include <string>
 #include "bip39/bip39.h"
 #include <Arduino.h>
-#include "WiFi.h"
+#include <WiFiManager.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
 #include <SPI.h>
+#include <SPIFFS.h>
+#include <FS.h>
 #include <TFT_eSPI.h> 
 #include "box.h"
 #include "kitty.h"
 #include "charge.h"
-#include "creds.h"
+
 TFT_eSPI tft = TFT_eSPI(); 
 TFT_eSprite background= TFT_eSprite(&tft);
 TFT_eSprite txtSprite1= TFT_eSprite(&tft);
@@ -32,8 +34,22 @@ TFT_eSprite txtSprite2= TFT_eSprite(&tft);
 TFT_eSprite Kitty= TFT_eSprite(&tft);
 TFT_eSprite Charge= TFT_eSprite(&tft);
 
+#define TRIGGER_PIN 0
 
+//=====Box Opener client setup
+const char *apiUrl = "https://api.erwin.lol/"; // mainnet
+//const char *apiUrl = "https://devnet-api.erwin.lol/"; // devnet
 
+// JSON configuration file
+#define JSON_CONFIG_FILE "/apikey_config.json"
+
+// Flag for saving API data
+bool shouldSaveConfig = false;
+ 
+// Variables to hold data from custom textboxes
+char apiKey[300];
+
+WiFiManager wm;
 
 const int numGuesses = 50;
 String mnemonics[numGuesses]; // bip39 mnemonic table
@@ -44,11 +60,126 @@ int dataT = 0; //Timeout count
 int dataP = 0; //success percentage
 int chargeCheck = 0; //count of consecutive rejects
 
+void saveConfigFile()
+// Save Config in JSON format
+{
+  Serial.println(F("Saving configuration..."));
+  
+  // Create a JSON document
+  StaticJsonDocument<512> json;
+  json["testString"] = apiKey;
+ 
+  // Open config file
+  File configFile = SPIFFS.open(JSON_CONFIG_FILE, "w");
+  if (!configFile)
+  {
+    // Error, file did not open
+    Serial.println("failed to open config file for writing");
+  }
+ 
+  // Serialize JSON data to write to file
+  serializeJsonPretty(json, Serial);
+  if (serializeJson(json, configFile) == 0)
+  {
+    // Error writing file
+    Serial.println(F("Failed to write to file"));
+  }
+  // Close file
+  configFile.close();
+}
+ 
+bool loadConfigFile()
+// Load existing configuration file
+{
+  // Uncomment if we need to format filesystem
+  // SPIFFS.format();
+ 
+  // Read configuration from FS json
+  Serial.println("Mounting File System...");
+ 
+  // May need to make it begin(true) first time you are using SPIFFS
+  if (SPIFFS.begin(false) || SPIFFS.begin(true))
+  {
+    Serial.println("mounted file system");
+    if (SPIFFS.exists(JSON_CONFIG_FILE))
+    {
+      // The file exists, reading and loading
+      Serial.println("reading config file");
+      File configFile = SPIFFS.open(JSON_CONFIG_FILE, "r");
+      if (configFile)
+      {
+        Serial.println("Opened configuration file");
+        StaticJsonDocument<512> json;
+        DeserializationError error = deserializeJson(json, configFile);
+        serializeJsonPretty(json, Serial);
+        if (!error)
+        {
+          Serial.println("Parsing JSON");
+ 
+          strcpy(apiKey, json["testString"]);
+ 
+          return true;
+        }
+        else
+        {
+          // Error loading JSON data
+          Serial.println("Failed to load json config");
+        }
+      }
+    }
+  }
+  else
+  {
+    // Error mounting file system
+    Serial.println("Failed to mount FS");
+  }
+ 
+  return false;
+}
+ 
+ 
+void saveConfigCallback()
+// Callback notifying us of the need to save configuration
+{
+  Serial.println("Should save config");
+  shouldSaveConfig = true;
+}
+ 
+void configModeCallback(WiFiManager *myWiFiManager)
+// Called when config mode launched
+{
+  Serial.println("Entered Configuration Mode");
+ 
+  Serial.print("Config SSID: ");
+  Serial.println(myWiFiManager->getConfigPortalSSID());
+ 
+  Serial.print("Config IP Address: ");
+  Serial.println(WiFi.softAPIP());
+}
 
 void setup()
 {
+  Serial.begin(115200);
+
+  pinMode(TRIGGER_PIN, INPUT_PULLUP);
+
+  // Change to true when testing to force configuration every time we run
+  bool forceConfig = false;
+ 
+  bool spiffsSetup = loadConfigFile();
+  if (!spiffsSetup)
+  {
+    Serial.println(F("Forcing config mode as there is no saved config"));
+    forceConfig = true;
+  }
+
+  Serial.print("read api key: ");
+  Serial.println(apiKey);
+
+
   tft.init();
   tft.setRotation(0);
+  tft.fillScreen(TFT_BLACK);
   tft.setSwapBytes(true);
 
   // Create graphics elements
@@ -58,19 +189,51 @@ void setup()
   Charge.createSprite(77,88); 
   txtSprite1.createSprite(100,20);
   txtSprite2.createSprite(100,20);
-  
-  
-  Serial.begin(115200);
 
   WiFi.mode(WIFI_STA);
   WiFi.disconnect();
   delay(100);
 
   WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
+  //WiFi.begin(ssid, password);
+  //wm.resetSettings();
+
+  // Set config save notify callback
+  wm.setSaveConfigCallback(saveConfigCallback);
+ 
+  // Set callback that gets called when connecting to previous WiFi fails, and enters Access Point mode
+  wm.setAPCallback(configModeCallback);
+
+  // Define a text box, 50 characters maximum
+  WiFiManagerParameter api_text("API", "Enter your API Key here", "default string", 256);
+ 
+  // Add custom parameter
+  wm.addParameter(&api_text);
+
   Serial.print("Connecting to WiFi ..");
   
-  //Display empty box and Connecting message
+  //Display empty box and Setup WiFi message
+  background.pushImage(0,0,135,240,box);
+  txtSprite1.setTextColor(TFT_GREEN,TFT_BLACK);
+  txtSprite1.fillSprite(TFT_BLACK);
+  txtSprite1.drawString("Setup Wifi",17,0,2); 
+  txtSprite1.pushToSprite(&background,20,205,TFT_BLACK);
+  //Render to screen
+  background.pushSprite(0,0);
+
+bool res;
+ 
+res = wm.autoConnect("Erwin Box Opener","password"); // password protected ap
+
+    if(!res) {
+ 
+        Serial.println("Failed to connect");
+ 
+        // ESP.restart();
+ 
+    }
+
+//Display empty box and Connecting message
   background.pushImage(0,0,135,240,box);
   txtSprite1.setTextColor(TFT_WHITE,TFT_BLACK);
   txtSprite1.fillSprite(TFT_BLACK);
@@ -78,6 +241,23 @@ void setup()
   txtSprite1.pushToSprite(&background,20,205,TFT_BLACK);
   //Render to screen
   background.pushSprite(0,0);
+
+  delay(1000);
+  
+  Serial.print("api key: ");
+  Serial.println(apiKey);
+
+  // Save the custom parameters to FS
+  if (shouldSaveConfig)
+  {
+    saveConfigFile();
+     // Copy the string value
+    strncpy(apiKey, api_text.getValue(), sizeof(apiKey));
+  }
+
+  Serial.print("api key: ");
+  Serial.println(apiKey);
+ 
 
   while (WiFi.status() != WL_CONNECTED)
   {
@@ -236,6 +416,9 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
     //Render to screem
     background.pushSprite(0,0);
     
+    Serial.println(apiKey);
+    
+    
   return ret;
 }
 
@@ -254,7 +437,7 @@ void loop()
 
   generateMnemonics(mnemonics);
 
-  bool rateLimited = submitGuesses(mnemonics, apiUrl, apiKey);
+  bool rateLimited = submitGuesses(mnemonics, apiUrl, (const char*)apiKey);
 
   if (rateLimited)
   {
