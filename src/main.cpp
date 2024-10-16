@@ -245,9 +245,6 @@ void wificonnect()
         forceConfig = true;
     }
 
-    Serial.print("read api key: ");
-    Serial.println(apiKey);
-
     WiFi.mode(WIFI_STA);
     WiFi.disconnect();
     delay(100);
@@ -288,9 +285,6 @@ void wificonnect()
 
     delay(1000);
 
-    Serial.print("api key: ");
-    Serial.println(apiKey);
-
     // Save the custom parameters to FS
     if (shouldSaveConfig)
     {
@@ -298,9 +292,6 @@ void wificonnect()
         // Copy the string value
         strncpy(apiKey, api_text.getValue(), sizeof(apiKey));
     }
-
-    Serial.print("api key: ");
-    Serial.println(apiKey);
 }
 
 // Setup
@@ -468,16 +459,11 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
  
   displayImage(background, text1String, text1Color, TFT_BLACK, text1Offset, 205, percent, showKitty, showCharge);
 
-  Serial.println(apiKey);
-
   return ret;
 }
 
 // Main loop
 void loop() {
-    Serial.print("time: ");
-    Serial.println(rtc.getEpoch());
-
     // Is configuration portal requested?
     if (wifibuttonPressed) {
         wm.resetSettings();
@@ -489,11 +475,6 @@ void loop() {
     if (chargebuttonPressed) {
         rtc.setTime(30);
         chargebuttonPressed = false;
-    }
-
-    // If time since last charge is over 66 hours remind user
-    if (rtc.getEpoch() > 100) {
-        Serial.println("charge me mofo");
     }
 
     //--- Reconnect WiFi if it is not connected for some reason
