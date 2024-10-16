@@ -92,6 +92,11 @@ waiting 10s for next batch...
 ✅ Guesses accepted
 waiting 10s for next batch...
 ⚙️ Generating guesses...
+``````
+
+## Reest Charge Feature
+To help remind you when to charge there is a charge indicator that shows a 3 day timer. When you are down to 1 bar it is time to reset in Discord! When you hit the charge button in Discord simply press the right button to reset the 3 day timer on the hardware. After the next guess cycle the charge level will reset. 
+
 🔑️ Generated 50 guesses
 ➡️ Submitting to oracle
 ✅ Guesses accepted
