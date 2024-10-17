@@ -25,6 +25,7 @@
 #include <TFT_eSPI.h> 
 #include "box.h"
 #include "kitty.h"
+#include "kittyhappy.h"
 #include "charge.h"
 #include <ESP32Time.h>
 
@@ -224,6 +225,11 @@ void displayImage(TFT_eSprite &background, const String &message1, uint16_t text
         Kitty.pushImage(0, 0, 96, 133, kitty);
         Kitty.pushToSprite(&background, 26, 52, TFT_BLACK);
     }
+    else if (overSprite == "kittyhappy")
+    {
+        Kitty.pushImage(0, 0, 96, 133, kittyhappy);
+        Kitty.pushToSprite(&background, 26, 52, TFT_BLACK);
+    }
     else if (overSprite == "charge")
     {
         Charge.pushImage(0, 0, 77, 88, charge);
@@ -266,7 +272,7 @@ void wificonnect()
 
     Serial.print("Connecting to WiFi ..");
 
-    // Display message note GREEN is RED
+    // Display message note GREEN is RED, no sprite ("null")
     displayImage(background, "Setup Wifi", TFT_GREEN, TFT_BLACK, 17, 205, "", "null");
 
     bool res;
@@ -280,6 +286,7 @@ void wificonnect()
         // ESP.restart();
     }
 
+    // Display message, no sprite ("null")
     displayImage(background, "Connecting", TFT_WHITE, TFT_BLACK, 20, 205, "", "null");
 
     delay(1000);
@@ -373,6 +380,7 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
     chooseSprite = "charge";
   }
 
+  // Display message, sprite is kitty or charge
   displayImage(background, "Generating", TFT_WHITE, TFT_BLACK, 16, 205, percent, chooseSprite);
 
   String jsonString;
@@ -395,6 +403,7 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
       text1Color = TFT_BLUE; // Note BLUE is actually GREEN!
       text1String = "Accepted";
       text1Offset = 23;
+      chooseSprite = "kittyhappy";
 
       // Setup counts
       dataS++;
@@ -407,6 +416,7 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
       text1Color = TFT_GREEN; // Note GREEN is actually RED!
       text1String = "No Boxes";
       text1Offset = 25;
+      chooseSprite = "kitty";
 
       // Setup counts
       dataF++;
@@ -419,6 +429,7 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
       text1Color = TFT_GREEN; // Note GREEN is actually RED
       text1String = "Rejected";
       text1Offset = 24;
+      chooseSprite = "kitty";
 
       // Setup counts
       dataF++;
@@ -432,6 +443,7 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
     text1Color = TFT_GREEN; // Note GREEN is actually RED
     text1String = "Timeout";
     text1Offset = 27;
+    chooseSprite = "kitty";
 
     // Setup counts
     dataT++;
@@ -447,11 +459,9 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
     text1String = "CHARGE ME";
     text1Offset = 18;
     chooseSprite = "charge";
-  } else { // if there is no charge needed, setup the kitty image
-    chooseSprite = "kitty";
   }
 
- 
+  // Display message, sprite is kitty or charge
   displayImage(background, text1String, text1Color, TFT_BLACK, text1Offset, 205, percent, chooseSprite);
 
   return ret;
