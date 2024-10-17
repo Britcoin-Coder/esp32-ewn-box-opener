@@ -112,7 +112,8 @@ void saveConfigFile()
   
     // Create a JSON document
     StaticJsonDocument<512> json;
-    json["testString"] = apiKey;
+    Serial.println(apiKey);
+    json["API KEY"] = apiKey;
  
     // Open config file
     File configFile = SPIFFS.open(JSON_CONFIG_FILE, "w");
@@ -163,7 +164,7 @@ bool loadConfigFile()
                 {
                     Serial.println("Parsing JSON");
 
-                    strcpy(apiKey, json["testString"]);
+                    strcpy(apiKey, json["API KEY"]);
 
                     return true;
                 }
@@ -244,14 +245,10 @@ void wificonnect()
         Serial.println(F("Forcing config mode as there is no saved config"));
         forceConfig = true;
     }
-
-    WiFi.mode(WIFI_STA);
-    WiFi.disconnect();
-    delay(100);
-
+    
     WiFi.mode(WIFI_STA);
 
-    // wm.resetSettings();
+    //wm.resetSettings();
 
     // Set config save notify callback
     wm.setSaveConfigCallback(saveConfigCallback);
@@ -288,9 +285,9 @@ void wificonnect()
     // Save the custom parameters to FS
     if (shouldSaveConfig)
     {
-        saveConfigFile();
         // Copy the string value
         strncpy(apiKey, api_text.getValue(), sizeof(apiKey));
+        saveConfigFile();
     }
 }
 
