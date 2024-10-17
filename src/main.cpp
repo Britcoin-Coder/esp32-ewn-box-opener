@@ -113,7 +113,7 @@ void saveConfigFile()
     // Create a JSON document
     StaticJsonDocument<512> json;
     Serial.println(apiKey);
-    json["api_key] = apiKey;
+    json["api_key"] = apiKey;
  
     // Open config file
     File configFile = SPIFFS.open(JSON_CONFIG_FILE, "w");
@@ -164,7 +164,7 @@ bool loadConfigFile()
                 {
                     Serial.println("Parsing JSON");
 
-                    strcpy(apiKey, json["api_key]);
+                    strcpy(apiKey, json["api_key"]);
 
                     return true;
                 }
