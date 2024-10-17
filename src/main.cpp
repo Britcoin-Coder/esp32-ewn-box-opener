@@ -66,6 +66,7 @@ int text1Offset =0; //offset for text
   
 uint16_t text1Color;
 String text1String;
+String chooseSprite;
 String mnemonics[numGuesses]; // bip39 mnemonic table
 
 //wifi button interrupt
@@ -206,7 +207,7 @@ void configModeCallback(WiFiManager *myWiFiManager)
 
 // Send data to display
 void displayImage(TFT_eSprite &background, const String &message1, uint16_t text1Color, uint16_t bgColor, int xPos1, int yPos1
-                  , const String &message2, bool isKitty, bool isCharge) {
+                  , const String &message2, const String &overSprite) {
     // Display empty box and Setup WiFi message
     background.pushImage(0, 0, 135, 240, box);
     txtSprite1.setTextColor(text1Color, bgColor);
@@ -217,17 +218,18 @@ void displayImage(TFT_eSprite &background, const String &message1, uint16_t text
     txtSprite2.fillSprite(bgColor);
     txtSprite2.drawString(message2, 0, 0, 2);
     txtSprite2.pushToSprite(&background, 18, 36, bgColor);
-    if (isKitty == true)
-    {  
-      Kitty.pushImage(0, 0, 96, 133, kitty);
-      Kitty.pushToSprite(&background, 26, 52, TFT_BLACK);
+    
+    if (overSprite == "kitty")
+    {
+        Kitty.pushImage(0, 0, 96, 133, kitty);
+        Kitty.pushToSprite(&background, 26, 52, TFT_BLACK);
     }
-    if (isCharge == true)
-    {  
-      Charge.pushImage(0,0,77,88,charge);
-      Charge.pushToSprite(&background,30,68,TFT_BLACK);
+    else if (overSprite == "charge")
+    {
+        Charge.pushImage(0, 0, 77, 88, charge);
+        Charge.pushToSprite(&background, 30, 68, TFT_BLACK);
     }
-
+    
     // Render to screen
     background.pushSprite(0, 0);
     renderCharge();
@@ -265,7 +267,7 @@ void wificonnect()
     Serial.print("Connecting to WiFi ..");
 
     // Display message note GREEN is RED
-    displayImage(background, "Setup Wifi", TFT_GREEN, TFT_BLACK, 17, 205, "", showKitty, showCharge);
+    displayImage(background, "Setup Wifi", TFT_GREEN, TFT_BLACK, 17, 205, "", "null");
 
     bool res;
 
@@ -278,7 +280,7 @@ void wificonnect()
         // ESP.restart();
     }
 
-    displayImage(background, "Connecting", TFT_WHITE, TFT_BLACK, 20, 205, "", showKitty, showCharge);
+    displayImage(background, "Connecting", TFT_WHITE, TFT_BLACK, 20, 205, "", "null");
 
     delay(1000);
 
@@ -364,16 +366,14 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
 
   // Check if charge is needed and setup kitty or charge image
   if (chargeCheck < 10) {
-    showKitty = true;
-    showCharge = false;
+    chooseSprite = "kitty";
   }
   else
   {
-    showKitty = false;
-    showCharge = false;
+    chooseSprite = "charge";
   }
 
-  displayImage(background, "Generating", TFT_WHITE, TFT_BLACK, 16, 205, percent, showKitty, showCharge);
+  displayImage(background, "Generating", TFT_WHITE, TFT_BLACK, 16, 205, percent, chooseSprite);
 
   String jsonString;
   serializeJson(jsonDoc, jsonString);
@@ -446,15 +446,13 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
     text1Color = TFT_GREEN; // Note GREEN is actually RED
     text1String = "CHARGE ME";
     text1Offset = 18;
-    showKitty = false;
-    showCharge = true;
+    chooseSprite = "charge";
   } else { // if there is no charge needed, setup the kitty image
-    showKitty = true;
-    showCharge = false;
+    chooseSprite = "kitty";
   }
 
  
-  displayImage(background, text1String, text1Color, TFT_BLACK, text1Offset, 205, percent, showKitty, showCharge);
+  displayImage(background, text1String, text1Color, TFT_BLACK, text1Offset, 205, percent, chooseSprite);
 
   return ret;
 }
