@@ -1,3 +1,4 @@
+
 /*
  * ------------------------------------------------------------------------
  * Project Name: esp32-ewn-box-opener
@@ -26,7 +27,10 @@
 #include "box.h"
 #include "kitty.h"
 #include "kittyhappy.h"
+#include "kittyangry.h"
 #include "charge.h"
+#include "wifisetup.h"
+#include "wifisymbol.h"
 #include <ESP32Time.h>
 
 ESP32Time rtc(0);
@@ -230,6 +234,21 @@ void displayImage(TFT_eSprite &background, const String &message1, uint16_t text
         Kitty.pushImage(0, 0, 96, 133, kittyhappy);
         Kitty.pushToSprite(&background, 26, 52, TFT_BLACK);
     }
+    else if (overSprite == "kittyangry")
+    {
+        Kitty.pushImage(0, 0, 96, 133, kittyangry);
+        Kitty.pushToSprite(&background, 26, 52, TFT_BLACK);
+    }
+    else if (overSprite == "wifi")
+    {
+        Charge.pushImage(0, 0, 77, 88, wifisetup);
+        Charge.pushToSprite(&background, 30, 68, TFT_BLACK);
+    }
+    else if (overSprite == "connect")
+    {
+        Charge.pushImage(0, 0, 77, 88, wifisymbol);
+        Charge.pushToSprite(&background, 30, 68, TFT_BLACK);
+    }
     else if (overSprite == "charge")
     {
         Charge.pushImage(0, 0, 77, 88, charge);
@@ -272,8 +291,10 @@ void wificonnect()
 
     Serial.print("Connecting to WiFi ..");
 
-    // Display message note GREEN is RED, no sprite ("null")
-    displayImage(background, "Setup Wifi", TFT_GREEN, TFT_BLACK, 17, 205, "", "null");
+    chooseSprite = "wifi";
+
+    // Display message note GREEN is RED, wifi setup
+    displayImage(background, "Setup Wifi", TFT_GREEN, TFT_BLACK, 17, 205, "", chooseSprite);
 
     bool res;
 
@@ -286,8 +307,10 @@ void wificonnect()
         // ESP.restart();
     }
 
-    // Display message, no sprite ("null")
-    displayImage(background, "Connecting", TFT_WHITE, TFT_BLACK, 20, 205, "", "null");
+    chooseSprite = "connect";
+
+    // Display message, wifi symbol
+    displayImage(background, "Connecting", TFT_WHITE, TFT_BLACK, 20, 205, "", chooseSprite);
 
     delay(1000);
 
@@ -357,11 +380,8 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
   bool ret = false;
   DynamicJsonDocument jsonDoc(8192); // max size of the json output, to verify! (4kB was not enough)
 
-   // Do some maths to work out the successful percent of guess rounds
-  dataP = float(dataS) / float(dataS + dataF + dataT) * 100;
   String percent = String(dataP) + "%";
-
-
+  
   for (int i = 0; i < numGuesses; i++) {
     jsonDoc.add(mnemonics[i]);
   }
@@ -461,6 +481,10 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
     chooseSprite = "charge";
   }
 
+   // Do some maths to work out the successful percent of guess rounds
+  dataP = float(dataS) / float(dataS + dataF + dataT) * 100;
+  percent = String(dataP) + "%";
+  
   // Display message, sprite is kitty or charge
   displayImage(background, text1String, text1Color, TFT_BLACK, text1Offset, 205, percent, chooseSprite);
 
