@@ -8,7 +8,7 @@
  * Fork Author: bigdaveakers
  * Fork Repository: https://github.com/Britcoin-Coder/esp32-ewn-box-opener
  * Date: 2024.10.16 
- * Version: 2.0
+ * Version: 3.0
  * License: MIT
  * ------------------------------------------------------------------------
  */
@@ -32,6 +32,7 @@
 #include "wifisetup.h"
 #include "wifisymbol.h"
 #include <ESP32Time.h>
+#include <Preferences.h>
 
 ESP32Time rtc(0);
 
@@ -42,11 +43,17 @@ TFT_eSprite txtSprite2= TFT_eSprite(&tft);
 TFT_eSprite Kitty= TFT_eSprite(&tft);
 TFT_eSprite Charge= TFT_eSprite(&tft);
 
+Preferences remainingTime;
+
 WiFiManager wm;
 
 #define JSON_CONFIG_FILE "/apikey_config.json" // JSON file for api key
 #define WIFI_PIN 0 // left button for wifi config
 #define CHARGE_PIN 35 // right button to reset charge
+#define NTP_SERVER     "pool.ntp.org" // server to get time from
+#define UTC_OFFSET     0 //offset from UTC (no need to change as it isn't used for showing time)
+#define UTC_OFFSET_DST 0 //offset for daylight saving (no need to change as it isn't used for showing time)
+
 
 bool wifibuttonPressed = false; // initialise wifi button state
 bool chargebuttonPressed = false; // initialise charge button state
@@ -58,7 +65,7 @@ const char *apiUrl = "https://api.erwin.lol/"; //=====Box Opener client setup ma
 
 char apiKey[300]; // Variable to hold api key from wifi setup
 
-const int numGuesses = 50;
+const int numGuesses = 50; //number of guesses per round
 
 int sleepTime = 10000; // default sleep time in ms
 int dataS = 0; //succesful data count
@@ -66,12 +73,14 @@ int dataF = 0; //failed data count
 int dataT = 0; //Timeout count
 int dataP = 0; //success percentage
 int chargeCheck = 0; //count of consecutive rejects
-int chargeTimer = 259200; //72 hour timer
+int chargeTimer = 259080; //72 hour timer (minus 120 seconds)
+int expireTime; //future time where charge expires
+unsigned long epochTime; //time in epoch format
 int text1Offset =0; //offset for text
   
-uint16_t text1Color;
-String text1String;
-String chooseSprite;
+uint16_t text1Color; //colour for text display
+String text1String; //message for text display
+String chooseSprite; //which sprite to show
 String mnemonics[numGuesses]; // bip39 mnemonic table
 
 //wifi button interrupt
@@ -90,7 +99,7 @@ void IRAM_ATTR handlechargeButtonPress()
 void renderCharge()
 {
   int currentTime = rtc.getEpoch();   // Get the time once
-  int remainingTime = chargeTimer - currentTime; // Calculate remaining time
+  int remainingTime = expireTime - currentTime; // Calculate remaining time
   int chargeLevel = (remainingTime / (chargeTimer / 11)); // Determine current charge level (0-10)
 
   // Define colors for each charge level
@@ -105,8 +114,8 @@ void renderCharge()
   // Loop through and draw rectangles based on the charge level
   for (int i = 0; i < chargeLevel; ++i)
   {
-    int xPosition = 34 + (i * 7);  // Calculate x position of the rectangle
-    tft.fillRoundRect(xPosition, 228, 5, 10, 2, colors[i]);  // Draw the rectangle
+    int xPosition = 35 + (i * 7);  // Calculate x position of the rectangle
+    tft.fillRoundRect(xPosition, 15, 5, 10, 2, colors[i]);  // Draw the rectangle
   }
 }
 
@@ -118,8 +127,6 @@ void saveConfigFile()
   
     // Create a JSON document
     StaticJsonDocument<512> json;
-    Serial.println(apiKey);
-    json["api_key"] = apiKey;
  
     // Open config file
     File configFile = SPIFFS.open(JSON_CONFIG_FILE, "w");
@@ -219,25 +226,25 @@ void displayImage(TFT_eSprite &background, const String &message1, uint16_t text
     txtSprite1.fillSprite(bgColor);
     txtSprite1.drawString(message1, xPos1, 0, 2);
     txtSprite1.pushToSprite(&background, 20, yPos1, bgColor);
-    txtSprite2.setTextColor(TFT_RED, bgColor);
-    txtSprite2.fillSprite(bgColor);
-    txtSprite2.drawString(message2, 0, 0, 2);
-    txtSprite2.pushToSprite(&background, 18, 36, bgColor);
+    //txtSprite2.setTextColor(TFT_RED, bgColor);
+    //txtSprite2.fillSprite(bgColor);
+    //txtSprite2.drawString(message2, 0, 0, 2);
+    //txtSprite2.pushToSprite(&background, 18, 36, bgColor);
     
     if (overSprite == "kitty")
     {
-        Kitty.pushImage(0, 0, 96, 133, kitty);
-        Kitty.pushToSprite(&background, 26, 52, TFT_BLACK);
+        Kitty.pushImage(0, 0, 98, 124, kitty);
+        Kitty.pushToSprite(&background, 21, 62, TFT_BLACK);
     }
     else if (overSprite == "kittyhappy")
     {
-        Kitty.pushImage(0, 0, 96, 133, kittyhappy);
-        Kitty.pushToSprite(&background, 26, 52, TFT_BLACK);
+        Kitty.pushImage(0, 0, 98, 124, kittyhappy);
+        Kitty.pushToSprite(&background, 21, 62, TFT_BLACK);
     }
     else if (overSprite == "kittyangry")
     {
-        Kitty.pushImage(0, 0, 96, 133, kittyangry);
-        Kitty.pushToSprite(&background, 26, 52, TFT_BLACK);
+        Kitty.pushImage(0, 0, 98, 124, kittyangry);
+        Kitty.pushToSprite(&background, 21, 62, TFT_BLACK);
     }
     else if (overSprite == "wifi")
     {
@@ -294,7 +301,7 @@ void wificonnect()
     chooseSprite = "wifi";
 
     // Display message note GREEN is RED, wifi setup
-    displayImage(background, "Setup Wifi", TFT_GREEN, TFT_BLACK, 17, 205, "", chooseSprite);
+    displayImage(background, "Setup Wifi", TFT_GREEN, TFT_BLACK, 17, 200, "", chooseSprite);
 
     bool res;
 
@@ -310,7 +317,7 @@ void wificonnect()
     chooseSprite = "connect";
 
     // Display message, wifi symbol
-    displayImage(background, "Connecting", TFT_WHITE, TFT_BLACK, 20, 205, "", chooseSprite);
+    displayImage(background, "Connecting", TFT_WHITE, TFT_BLACK, 15, 200, "", chooseSprite);
 
     delay(1000);
 
@@ -323,11 +330,25 @@ void wificonnect()
     }
 }
 
+// Function that gets current epoch time
+unsigned long getTime() {
+  time_t now;
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) {
+    Serial.println("Failed to obtain time");
+    return(0);
+  }
+  time(&now);
+  return now;
+}
+
 // Setup
 void setup() {
   Serial.begin(115200);
 
-  rtc.setTime(30);
+  remainingTime.begin("charge_timer", false);
+
+  
 
   pinMode(WIFI_PIN, INPUT_PULLUP);
   attachInterrupt(WIFI_PIN, handlewifiButtonPress, RISING);
@@ -343,7 +364,7 @@ void setup() {
       // Create graphics elements
   background.createSprite(135, 240);
   background.setSwapBytes(true);
-  Kitty.createSprite(96, 133);
+  Kitty.createSprite(98, 124);
   Charge.createSprite(77, 88);
   txtSprite1.createSprite(100, 20);
   txtSprite2.createSprite(100, 20);
@@ -356,6 +377,16 @@ void setup() {
   }
   Serial.println();
   Serial.println(WiFi.localIP()); // print local IP
+
+  //get time each time the board starts
+  configTime(UTC_OFFSET, UTC_OFFSET_DST, NTP_SERVER);
+  epochTime = getTime();
+  rtc.setTime(epochTime);
+
+  //update and store expiry time, if it doesn't exist set it to the current time plus 3 days
+  expireTime = remainingTime.getUInt("timeExpire", epochTime + chargeTimer);
+  remainingTime.putUInt("timeExpire", expireTime);
+  remainingTime.end();  
 
   Serial.printf("===============\n");
   Serial.printf("Box-opener started\n");
@@ -401,7 +432,7 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
   }
 
   // Display message, sprite is kitty or charge
-  displayImage(background, "Generating", TFT_WHITE, TFT_BLACK, 16, 205, percent, chooseSprite);
+  displayImage(background, "Generating", TFT_WHITE, TFT_BLACK, 16, 200, percent, chooseSprite);
 
   String jsonString;
   serializeJson(jsonDoc, jsonString);
@@ -436,7 +467,7 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
       text1Color = TFT_GREEN; // Note GREEN is actually RED!
       text1String = "No Boxes";
       text1Offset = 25;
-      chooseSprite = "kitty";
+      chooseSprite = "kittyangry";
 
       // Setup counts
       dataF++;
@@ -449,7 +480,7 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
       text1Color = TFT_GREEN; // Note GREEN is actually RED
       text1String = "Rejected";
       text1Offset = 24;
-      chooseSprite = "kitty";
+      chooseSprite = "kittyangry";
 
       // Setup counts
       dataF++;
@@ -463,7 +494,7 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
     text1Color = TFT_GREEN; // Note GREEN is actually RED
     text1String = "Timeout";
     text1Offset = 27;
-    chooseSprite = "kitty";
+    chooseSprite = "kittyangry";
 
     // Setup counts
     dataT++;
@@ -486,7 +517,7 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
   percent = String(dataP) + "%";
   
   // Display message, sprite is kitty or charge
-  displayImage(background, text1String, text1Color, TFT_BLACK, text1Offset, 205, percent, chooseSprite);
+  displayImage(background, text1String, text1Color, TFT_BLACK, text1Offset, 200, percent, chooseSprite);
 
   return ret;
 }
@@ -501,8 +532,18 @@ void loop() {
     }
 
     // Is charge reset requested?
-    if (chargebuttonPressed) {
-        rtc.setTime(30);
+    if (chargebuttonPressed)
+    {
+        //update internal clock
+        epochTime = getTime();
+        rtc.setTime(epochTime);
+
+        //update and store expiry time
+        remainingTime.begin("charge_timer", false);
+        expireTime = epochTime + chargeTimer;
+        remainingTime.putUInt("timeExpire", expireTime);
+        remainingTime.end(); 
+
         chargebuttonPressed = false;
     }
 
