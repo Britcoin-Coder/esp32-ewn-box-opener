@@ -1,4 +1,3 @@
-
 /*
  * ------------------------------------------------------------------------
  * Project Name: esp32-ewn-box-opener
@@ -76,6 +75,7 @@ void saveConfigFile()
   
     // Create a JSON document
     StaticJsonDocument<512> json;
+    json["api_key"] = apiKey;
  
     // Open config file
     File configFile = SPIFFS.open(JSON_CONFIG_FILE, "w");
